@@ -1,4 +1,4 @@
-%%==============================================================================
+%%=============================================================================
 %% Copyright 2011 Adam Lindberg & Erlang Solutions Ltd.
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +12,14 @@
 %% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
-%%==============================================================================
+%%=============================================================================
 
 %% @hidden
 %% @author Adam Lindberg <eproxus@gmail.com>
 %% @copyright 2011, Adam Lindberg & Erlang Solutions Ltd
 %% @doc Module wrangling helper functions.
 
--module(meck_mod).
+-module(meck_code).
 
 %% Interface exports
 -export([abstract_code/1]).
@@ -28,6 +28,7 @@
 -export([compile_and_load_forms/1]).
 -export([compile_and_load_forms/2]).
 -export([compile_options/1]).
+-export([enable_on_load/2]).
 -export([rename_module/2]).
 
 %% Types
@@ -35,9 +36,9 @@
 -type compile_options() :: [term()].
 -type export() :: {atom(), byte()}.
 
-%%==============================================================================
+%%=============================================================================
 %% Interface exports
-%%==============================================================================
+%%=============================================================================
 
 -spec abstract_code(binary()) -> erlang_form().
 abstract_code(BeamFile) ->
@@ -89,6 +90,14 @@ compile_options(BeamFile) when is_binary(BeamFile) ->
 compile_options(Module) ->
   filter_options(proplists:get_value(options, Module:module_info(compile))).
 
+enable_on_load(Forms, false) ->
+    Map = fun({attribute,L,on_load,{F,A}}) -> {attribute,L,export,[{F,A}]};
+             (Other) -> Other
+          end,
+    lists:map(Map, Forms);
+enable_on_load(Forms, _) ->
+    Forms.
+
 -spec rename_module(erlang_form(), module()) -> erlang_form().
 rename_module([{attribute, Line, module, OldAttribute}|T], NewName) ->
     case OldAttribute of
@@ -100,9 +109,9 @@ rename_module([{attribute, Line, module, OldAttribute}|T], NewName) ->
 rename_module([H|T], NewName) ->
     [H|rename_module(T, NewName)].
 
-%%==============================================================================
+%%=============================================================================
 %% Internal functions
-%%==============================================================================
+%%=============================================================================
 
 load_binary(Name, Binary) ->
     case code:load_binary(Name, "", Binary) of
